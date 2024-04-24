@@ -928,6 +928,7 @@ enable_render_metal
 enable_video_directfb
 enable_directfb_shared
 enable_video_kmsdrm
+enable_video_mali
 enable_kmsdrm_shared
 enable_video_dummy
 enable_video_offscreen
@@ -23716,10 +23717,10 @@ fi
         if test x$video_rpi = xno; then
             if test x$ARCH = xnetbsd; then
                 RPI_CFLAGS="-I/usr/pkg/include -I/usr/pkg/include/interface/vcos/pthreads -I/usr/pkg/include/interface/vmcs_host/linux"
-                RPI_LIBS="-Wl,-R/usr/pkg/lib -L/usr/pkg/lib -lbcm_host"
+                RPI_LIBS="-Wl,-R/usr/pkg/lib -L/usr/pkg/lib -lbcm_host -lvchostif"
             else
                 RPI_CFLAGS="-I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux"
-                RPI_LIBS="-Wl,-rpath,/opt/vc/lib -L/opt/vc/lib -lbcm_host"
+                RPI_LIBS="-Wl,-rpath,/opt/vc/lib -L/opt/vc/lib -lbcm_host -lvchostif"
             fi
         fi
 
@@ -25608,6 +25609,10 @@ fi
 
         video_kmsdrm=no
 
+    if  test x$enable_video_mali = xyes; then
+$as_echo "#define SDL_VIDEO_DRIVER_MALI 1" >>confdefs.h
+            SUMMARY_video="${SUMMARY_video} mali"
+    fi
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libdrm >= 1.4.82" >&5
@@ -25681,19 +25686,19 @@ printf "%s\n" "yes" >&6; }
 fi
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for gbm >= 11.1.0" >&5
-printf %s "checking for gbm >= 11.1.0... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for gbm >= 9.0.0" >&5
+printf %s "checking for gbm >= 9.0.0... " >&6; }
 
 if test -n "$LIBGBM_CFLAGS"; then
     pkg_cv_LIBGBM_CFLAGS="$LIBGBM_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"gbm >= 11.1.0\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "gbm >= 11.1.0") 2>&5
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"gbm >= 9.0.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "gbm >= 9.0.0") 2>&5
   ac_status=$?
   printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_LIBGBM_CFLAGS=`$PKG_CONFIG --cflags "gbm >= 11.1.0" 2>/dev/null`
+  pkg_cv_LIBGBM_CFLAGS=`$PKG_CONFIG --cflags "gbm >= 9.0.0" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -25705,12 +25710,12 @@ if test -n "$LIBGBM_LIBS"; then
     pkg_cv_LIBGBM_LIBS="$LIBGBM_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"gbm >= 11.1.0\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "gbm >= 11.1.0") 2>&5
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"gbm >= 9.0.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "gbm >= 9.0.0") 2>&5
   ac_status=$?
   printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_LIBGBM_LIBS=`$PKG_CONFIG --libs "gbm >= 11.1.0" 2>/dev/null`
+  pkg_cv_LIBGBM_LIBS=`$PKG_CONFIG --libs "gbm >= 9.0.0" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -25731,9 +25736,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        LIBGBM_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gbm >= 11.1.0" 2>&1`
+	        LIBGBM_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gbm >= 9.0.0" 2>&1`
         else
-	        LIBGBM_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gbm >= 11.1.0" 2>&1`
+	        LIBGBM_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gbm >= 9.0.0" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$LIBGBM_PKG_ERRORS" >&5

@@ -255,10 +255,7 @@ static int IsJoystick(const char *path, int fd, char **name_return, SDL_Joystick
         }
     }
 
-    name = SDL_CreateJoystickName(inpid.vendor, inpid.product, NULL, product_string);
-    if (name == NULL) {
-        return 0;
-    }
+    name = SDL_strdup(product_string);
 
 #ifdef SDL_JOYSTICK_HIDAPI
     if (!IsVirtualJoystick(inpid.vendor, inpid.product, inpid.version, name) &&
@@ -943,6 +940,8 @@ static SDL_bool GuessIfAxesAreDigitalHat(struct input_absinfo *absinfo_x, struct
         return SDL_FALSE;
     }
 
+    return SDL_TRUE;
+
     /* If the hint says so, treat all hats as digital. */
     if (SDL_GetHintBoolean(SDL_HINT_LINUX_DIGITAL_HATS, SDL_FALSE)) {
         return SDL_TRUE;
@@ -975,23 +974,23 @@ static void ConfigJoystick(SDL_Joystick *joystick, int fd)
 
     SDL_AssertJoysticksLocked();
 
+    for(i=0; i<KEY_MAX; i++) {
+      joystick->hwdata->key_map[i] = -1;
+    }
+    for(i=0; i<ABS_MAX; i++) {
+      joystick->hwdata->abs_map[i] = -1;
+    }
+    for(i=0; i<ABS_MAX; i++) {
+      joystick->hwdata->hat_map[i] = -1;
+    }
+
     /* See if this device uses the new unified event API */
     if ((ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybit)), keybit) >= 0) &&
         (ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(absbit)), absbit) >= 0) &&
         (ioctl(fd, EVIOCGBIT(EV_REL, sizeof(relbit)), relbit) >= 0)) {
 
         /* Get the number of buttons, axes, and other thingamajigs */
-        for (i = BTN_JOYSTICK; i < KEY_MAX; ++i) {
-            if (test_bit(i, keybit)) {
-#ifdef DEBUG_INPUT_EVENTS
-                SDL_Log("Joystick has button: 0x%x\n", i);
-#endif
-                joystick->hwdata->key_map[i] = joystick->nbuttons;
-                joystick->hwdata->has_key[i] = SDL_TRUE;
-                ++joystick->nbuttons;
-            }
-        }
-        for (i = 0; i < BTN_JOYSTICK; ++i) {
+      for (i = 0; i < KEY_MAX; ++i) {
             if (test_bit(i, keybit)) {
 #ifdef DEBUG_INPUT_EVENTS
                 SDL_Log("Joystick has button: 0x%x\n", i);
@@ -1039,7 +1038,7 @@ static void ConfigJoystick(SDL_Joystick *joystick, int fd)
                 ++joystick->nhats;
             }
         }
-        for (i = 0; i < ABS_MAX; ++i) {
+        for (i = 0; i < ABS_MISC; ++i) {
             /* Skip digital hats */
             if (i >= ABS_HAT0X && i <= ABS_HAT3Y && joystick->hwdata->has_hat[(i - ABS_HAT0X) / 2]) {
                 continue;
@@ -1493,7 +1492,7 @@ static void HandleInputEvents(SDL_Joystick *joystick)
 
     SDL_AssertJoysticksLocked();
 
-    if (joystick->hwdata->fresh) {
+    if (joystick->hwdata->fresh || (joystick->initial_state_is_valid == SDL_TRUE && joystick->initial_state_initialized == SDL_FALSE)) {
         PollAllValues(joystick);
         joystick->hwdata->fresh = SDL_FALSE;
     }
@@ -1517,6 +1516,9 @@ static void HandleInputEvents(SDL_Joystick *joystick)
                                           events[i].value);
                 break;
             case EV_ABS:
+                if (code >= ABS_MISC) {
+                    break;
+                }
                 switch (code) {
                 case ABS_HAT0X:
                 case ABS_HAT0Y:
@@ -1736,6 +1738,9 @@ static SDL_bool LINUX_JoystickGetGamepadMapping(int device_index, SDL_GamepadMap
     unsigned int mapped;
 
     SDL_AssertJoysticksLocked();
+
+    /* disable this new SDL2 feature ; open/close temporarly the joystick is buggy. it frees up the hwdata informations */
+    return SDL_FALSE;
 
     if (item->checked_mapping) {
         if (item->mapping) {
@@ -2216,6 +2221,56 @@ SDL_JoystickDriver SDL_LINUX_JoystickDriver = {
     LINUX_JoystickQuit,
     LINUX_JoystickGetGamepadMapping
 };
+
+const char *
+SDL_SYS_JoystickDevicePathById(int device_instance_id)
+{
+  SDL_joylist_item* joystick = JoystickByDevIndex(SDL_JoystickGetDeviceIndexFromInstanceID(device_instance_id));
+  if(joystick == NULL) return "";
+  return joystick->hwdata->fname;
+}
+
+int SDL_SYS_JoystickButtonEventCodeById(int device_instance_id, int button)
+{
+  int i;
+  SDL_joylist_item* joystick = JoystickByDevIndex(SDL_JoystickGetDeviceIndexFromInstanceID(device_instance_id));
+  if(joystick == NULL) return -1;
+
+  for(i=0; i<KEY_MAX; i++) {
+    if(((int)joystick->hwdata->key_map[i]) == button) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+int SDL_SYS_JoystickAxisEventCodeById(int device_instance_id, int axis)
+{
+  int i;
+  SDL_joylist_item* joystick = JoystickByDevIndex(SDL_JoystickGetDeviceIndexFromInstanceID(device_instance_id));
+  if(joystick == NULL) return -1;
+
+  for(i=0; i<ABS_MAX; i++) {
+    if(((int)joystick->hwdata->abs_map[i]) == axis) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+int SDL_SYS_JoystickHatEventCodeById(int device_instance_id, int hat)
+{
+  int i;
+  SDL_joylist_item* joystick = JoystickByDevIndex(SDL_JoystickGetDeviceIndexFromInstanceID(device_instance_id));
+  if(joystick == NULL) return -1;
+
+  for(i=0; i<ABS_MAX; i++) {
+    if(((int)joystick->hwdata->hat_map[i]) == hat) {
+      return i;
+    }
+  }
+  return -1;
+}
 
 #endif /* SDL_JOYSTICK_LINUX */
 

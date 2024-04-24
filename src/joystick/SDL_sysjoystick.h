@@ -128,6 +128,9 @@ struct _SDL_Joystick
 
     int ref_count _guarded; /* Reference count for multiple opens */
 
+    SDL_bool initial_state_is_valid; // true once a first button is released (axis initial values are incorrect on some pad until this happen (ie 8bitdo nes)
+    SDL_bool initial_state_initialized; // true once the initialisation is done
+
     struct _SDL_Joystick *next _guarded; /* pointer to next joystick we have allocated */
 };
 
@@ -254,6 +257,11 @@ extern SDL_JoystickDriver SDL_N3DS_JoystickDriver;
 #ifdef __cplusplus
 }
 #endif
+
+extern const char *SDL_SYS_JoystickDevicePathById(int device_instance_id);
+extern int SDL_SYS_JoystickButtonEventCodeById(int device_instance_id, int button);
+extern int SDL_SYS_JoystickAxisEventCodeById(int device_instance_id, int axis);
+extern int SDL_SYS_JoystickHatEventCodeById(int device_instance_id, int hat);
 
 #endif /* SDL_sysjoystick_h_ */
 

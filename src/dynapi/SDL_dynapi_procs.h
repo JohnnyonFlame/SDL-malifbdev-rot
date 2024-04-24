@@ -243,6 +243,12 @@ SDL_DYNAPI_PROC(int,SDL_JoystickNumButtons,(SDL_Joystick *a),(a),return)
 SDL_DYNAPI_PROC(void,SDL_JoystickUpdate,(void),(),)
 SDL_DYNAPI_PROC(int,SDL_JoystickEventState,(int a),(a),return)
 SDL_DYNAPI_PROC(Sint16,SDL_JoystickGetAxis,(SDL_Joystick *a, int b),(a,b),return)
+
+SDL_DYNAPI_PROC(const char*,SDL_JoystickDevicePathById,(int a),(a),return)
+SDL_DYNAPI_PROC(int,SDL_JoystickButtonEventCodeById,(int a, int b),(a,b),return)
+SDL_DYNAPI_PROC(int,SDL_JoystickAxisEventCodeById,(int a, int b),(a,b),return)
+SDL_DYNAPI_PROC(int,SDL_JoystickHatEventCodeById,(int a, int b),(a,b),return)
+
 SDL_DYNAPI_PROC(Uint8,SDL_JoystickGetHat,(SDL_Joystick *a, int b),(a,b),return)
 SDL_DYNAPI_PROC(int,SDL_JoystickGetBall,(SDL_Joystick *a, int b, int *c, int *d),(a,b,c,d),return)
 SDL_DYNAPI_PROC(Uint8,SDL_JoystickGetButton,(SDL_Joystick *a, int b),(a,b),return)

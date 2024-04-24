@@ -89,19 +89,19 @@ SDL_EVDEV_GuessDeviceClass(const unsigned long bitmask_ev[NBITS(EV_MAX)],
             devclass |= SDL_UDEV_DEVICE_TOUCHSCREEN; /* ID_INPUT_TOUCHSCREEN */
         }
 
-        if (test_bit(BTN_TRIGGER, bitmask_key) ||
-            test_bit(BTN_A, bitmask_key) ||
-            test_bit(BTN_1, bitmask_key) ||
-            test_bit(ABS_RX, bitmask_abs) ||
-            test_bit(ABS_RY, bitmask_abs) ||
-            test_bit(ABS_RZ, bitmask_abs) ||
-            test_bit(ABS_THROTTLE, bitmask_abs) ||
-            test_bit(ABS_RUDDER, bitmask_abs) ||
-            test_bit(ABS_WHEEL, bitmask_abs) ||
-            test_bit(ABS_GAS, bitmask_abs) ||
-            test_bit(ABS_BRAKE, bitmask_abs)) {
-            devclass |= SDL_UDEV_DEVICE_JOYSTICK; /* ID_INPUT_JOYSTICK */
-        }
+        //if (test_bit(BTN_TRIGGER, bitmask_key) ||
+        //    test_bit(BTN_A, bitmask_key) ||
+        //    test_bit(BTN_1, bitmask_key) ||
+        //    test_bit(ABS_RX, bitmask_abs) ||
+        //    test_bit(ABS_RY, bitmask_abs) ||
+        //    test_bit(ABS_RZ, bitmask_abs) ||
+        //    test_bit(ABS_THROTTLE, bitmask_abs) ||
+        //    test_bit(ABS_RUDDER, bitmask_abs) ||
+        //    test_bit(ABS_WHEEL, bitmask_abs) ||
+        //    test_bit(ABS_GAS, bitmask_abs) ||
+        //    test_bit(ABS_BRAKE, bitmask_abs)) {
+        //    devclass |= SDL_UDEV_DEVICE_JOYSTICK; /* ID_INPUT_JOYSTICK */
+        //}
     }
 
     if (test_bit(EV_REL, bitmask_ev) &&

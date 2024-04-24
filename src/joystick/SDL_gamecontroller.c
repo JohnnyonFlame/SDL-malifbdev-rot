@@ -1879,13 +1879,13 @@ int SDL_GameControllerInitMappings(void)
 
     SDL_AssertJoysticksLocked();
 
-    pMappingString = s_ControllerMappings[i];
-    while (pMappingString) {
-        SDL_PrivateGameControllerAddMapping(pMappingString, SDL_CONTROLLER_MAPPING_PRIORITY_DEFAULT);
-
-        i++;
-        pMappingString = s_ControllerMappings[i];
-    }
+    //pMappingString = s_ControllerMappings[i];
+    //while (pMappingString) {
+    //    SDL_PrivateGameControllerAddMapping(pMappingString, SDL_CONTROLLER_MAPPING_PRIORITY_DEFAULT);
+    //
+    //    i++;
+    //    pMappingString = s_ControllerMappings[i];
+    //}
 
     if (SDL_GetControllerMappingFilePath(szControllerMapPath, sizeof(szControllerMapPath))) {
         SDL_GameControllerAddMappingsFromFile(szControllerMapPath);

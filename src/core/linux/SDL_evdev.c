@@ -336,6 +336,11 @@ void SDL_EVDEV_Poll(void)
                             SDL_SendKeyboardKey(SDL_PRESSED, scan_code);
                         }
                     }
+
+		    // retry to init in case something failed at init (like tty not yet opened)
+		    if (!_this->kbd) {
+		      _this->kbd = SDL_EVDEV_kbd_init();
+		    }
                     SDL_EVDEV_kbd_keycode(_this->kbd, events[i].code, events[i].value);
                     break;
                 case EV_ABS:

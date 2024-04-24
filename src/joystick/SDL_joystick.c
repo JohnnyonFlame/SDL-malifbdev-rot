@@ -27,6 +27,8 @@
 #include "SDL_events.h"
 #include "SDL_sysjoystick.h"
 #include "SDL_hints.h"
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "../SDL_hints_c.h"
 
 #if !SDL_EVENTS_DISABLED
@@ -141,6 +143,71 @@ SDL_bool SDL_JoysticksQuitting(void)
 {
     return SDL_joysticks_quitting;
 }
+
+void custom_restore_initial_state(SDL_Joystick * joystick) {
+  char filename[256];
+  char strguid[64];
+  char buf[64];
+  FILE* fd;
+  int i, n;
+  int val;
+
+  // open
+  SDL_JoystickGetGUIDString(joystick->guid, strguid, 64);
+  sprintf(filename, "/userdata/system/.sdl2/%s_%s.cache", strguid, joystick->name);
+  if( (fd = fopen(filename, "r")) == NULL) {
+    return;
+  }
+
+  // read number of axes
+  if(fgets(buf, 64, fd) == NULL) { return; /* ooops */ }
+  n = atoi(buf);
+  if(n != joystick->naxes) {
+    return; // invalid number of axes found
+  }
+
+  // read axes values
+  for (i = 0; i < n; ++i) {
+    if(fgets(buf, 64, fd) == NULL) { return; /* ooops */ }
+    val = atoi(buf);
+    joystick->axes[i].initial_value = val;
+    joystick->axes[i].value         = val;
+    joystick->axes[i].zero          = val;
+    joystick->axes[i].has_initial_value  = SDL_TRUE;
+  }
+  joystick->initial_state_is_valid    = SDL_TRUE;
+  joystick->initial_state_initialized = SDL_TRUE;
+
+  // close
+  fclose(fd);
+}
+
+void custom_save_initial_state(SDL_Joystick * joystick) {
+  char filename[256];
+  char strguid[64];
+  FILE* fd;
+  int i;
+
+  // dir
+  if(mkdir("/userdata/system/.sdl2", 0700) != 0) { /* ok, maybe already exists, anyway */ }
+
+  // open
+  SDL_JoystickGetGUIDString(joystick->guid, strguid, 64);
+  sprintf(filename, "/userdata/system/.sdl2/%s_%s.cache", strguid, joystick->name);
+  if( (fd = fopen(filename, "w")) == NULL) {
+    return;
+  }
+
+  // writting axes initial values
+  fprintf(fd, "%i\n", joystick->naxes);
+  for (i = 0; i < joystick->naxes; ++i) {
+    fprintf(fd, "%i\n", (int) joystick->axes[i].zero);
+  }
+
+  // close
+  fclose(fd);
+}
+
 
 void SDL_LockJoysticks(void)
 {
@@ -521,6 +588,9 @@ SDL_Joystick *SDL_JoystickOpen(int device_index)
     joystick->epowerlevel = SDL_JOYSTICK_POWER_UNKNOWN;
     joystick->led_expiration = SDL_GetTicks();
 
+    joystick->initial_state_is_valid = SDL_FALSE;
+    joystick->initial_state_initialized = SDL_FALSE;
+    
     if (driver->Open(joystick, device_index) < 0) {
         SDL_free(joystick);
         SDL_UnlockJoysticks();
@@ -570,6 +640,8 @@ SDL_Joystick *SDL_JoystickOpen(int device_index)
             joystick->axes[i].has_initial_value = SDL_TRUE;
         }
     }
+
+    custom_restore_initial_state(joystick);
 
     joystick->is_game_controller = SDL_IsGameController(device_index);
 
@@ -1356,6 +1428,7 @@ void SDL_JoystickQuit(void)
 
 static SDL_bool SDL_PrivateJoystickShouldIgnoreEvent()
 {
+    return SDL_FALSE;
     if (SDL_joystick_allows_background_events) {
         return SDL_FALSE;
     }
@@ -1596,6 +1669,11 @@ int SDL_PrivateJoystickAxis(SDL_Joystick *joystick, Uint8 axis, Sint16 value)
 
     SDL_AssertJoysticksLocked();
 
+    // ignore axis events until a button is released
+    if (joystick->initial_state_is_valid == SDL_FALSE) {
+      return 0;
+    }
+
     /* Make sure we're not getting garbage or duplicate events */
     if (axis >= joystick->naxes) {
         return 0;
@@ -1690,6 +1768,14 @@ int SDL_PrivateJoystickHat(SDL_Joystick *joystick, Uint8 hat, Uint8 value)
         event.jhat.which = joystick->instance_id;
         event.jhat.hat = hat;
         event.jhat.value = value;
+
+        if(joystick->initial_state_is_valid == SDL_FALSE) {
+          joystick->initial_state_is_valid = SDL_TRUE;
+          joystick->driver->Update(joystick);
+          custom_save_initial_state(joystick);
+          joystick->initial_state_initialized = SDL_TRUE;
+        }
+
         posted = SDL_PushEvent(&event) == 1;
     }
 #endif /* !SDL_EVENTS_DISABLED */
@@ -1745,6 +1831,12 @@ int SDL_PrivateJoystickButton(SDL_Joystick *joystick, Uint8 button, Uint8 state)
         event.type = SDL_JOYBUTTONDOWN;
         break;
     case SDL_RELEASED:
+        if(joystick->initial_state_is_valid == SDL_FALSE) {
+          joystick->initial_state_is_valid = SDL_TRUE;
+          joystick->driver->Update(joystick);
+          custom_save_initial_state(joystick);
+          joystick->initial_state_initialized = SDL_TRUE;
+        }
         event.type = SDL_JOYBUTTONUP;
         break;
     default:
@@ -1811,7 +1903,7 @@ void SDL_JoystickUpdate(void)
             if (joystick->delayed_guide_button) {
                 SDL_GameControllerHandleDelayedGuideButton(joystick);
             }
-        }
+
 
         now = SDL_GetTicks();
         if (joystick->rumble_expiration &&
@@ -1833,6 +1925,8 @@ void SDL_JoystickUpdate(void)
             SDL_TICKS_PASSED(now, joystick->trigger_rumble_expiration)) {
             SDL_JoystickRumbleTriggers(joystick, 0, 0, 0);
         }
+
+	}
     }
 
     /* this needs to happen AFTER walking the joystick list above, so that any
@@ -2106,7 +2200,7 @@ SDL_JoystickGUID SDL_CreateJoystickGUID(Uint16 bus, Uint16 vendor, Uint16 produc
     /* We only need 16 bits for each of these; space them out to fill 128. */
     /* Byteswap so devices get same GUID on little/big endian platforms. */
     *guid16++ = SDL_SwapLE16(bus);
-    *guid16++ = SDL_SwapLE16(SDL_crc16(0, name, SDL_strlen(name)));
+    *guid16++ = 0;
 
     if (vendor && product) {
         *guid16++ = SDL_SwapLE16(vendor);
@@ -3022,6 +3116,27 @@ void SDL_JoystickGetGUIDString(SDL_JoystickGUID guid, char *pszGUID, int cbGUID)
 SDL_JoystickGUID SDL_JoystickGetGUIDFromString(const char *pchGUID)
 {
     return SDL_GUIDFromString(pchGUID);
+}
+
+const char *
+SDL_JoystickDevicePathById(int device_instance_id)
+{
+  return SDL_SYS_JoystickDevicePathById( device_instance_id );
+}
+
+int SDL_JoystickButtonEventCodeById(int device_instance_id, int button)
+{
+  return SDL_SYS_JoystickButtonEventCodeById( device_instance_id, button );
+}
+
+int SDL_JoystickAxisEventCodeById(int device_instance_id, int axis)
+{
+  return SDL_SYS_JoystickAxisEventCodeById( device_instance_id, axis );
+}
+
+int SDL_JoystickHatEventCodeById(int device_instance_id, int hat)
+{
+  return SDL_SYS_JoystickHatEventCodeById( device_instance_id, hat );
 }
 
 /* update the power level for this joystick */

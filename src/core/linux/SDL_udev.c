@@ -60,6 +60,67 @@ static SDL_bool SDL_UDEV_load_sym(const char *fn, void **addr)
     return SDL_TRUE;
 }
 
+struct joypad_udev_entry
+{
+   const char *devnode;
+   struct udev_list_entry *item;
+   struct udev_device *dev;
+};
+
+int isNumber(const char *s) {
+  int n;
+
+  if(strlen(s) == 0) {
+    return 0;
+  }
+
+  for(n=0; n<strlen(s); n++) {
+    if(!(s[n] == '0' || s[n] == '1' || s[n] == '2' || s[n] == '3' || s[n] == '4' ||
+    s[n] == '5' || s[n] == '6' || s[n] == '7' || s[n] == '8' || s[n] == '9'))
+      return 0;
+  }
+  return 1;
+}
+
+// compare /dev/input/eventX and /dev/input/eventY where X and Y are numbers
+int strcmp_events(const char* x, const char* y) {
+
+  // find a common string
+  int n, common, is_number;
+  int a, b;
+
+  n=0;
+  while(x[n] == y[n] && x[n] != '\0' && y[n] != '\0') {
+    n++;
+  }
+  common = n;
+
+  // check if remaining string is a number
+  is_number = 1;
+  if(isNumber(x+common) == 0) is_number = 0;
+  if(isNumber(y+common) == 0) is_number = 0;
+
+  if(is_number == 1) {
+    a = atoi(x+common);
+    b = atoi(y+common);
+
+    if(a == b) return  0;
+    if(a < b)  return -1;
+    return 1;
+  } else {
+    return strcmp(x, y);
+  }
+}
+
+/* Used for sorting devnodes to appear in the correct order */
+static int sort_devnodes(const void *a, const void *b)
+{
+   const struct joypad_udev_entry *aa = a;
+   const struct joypad_udev_entry *bb = b;
+   return strcmp_events(aa->devnode, bb->devnode);
+}
+
+
 static int SDL_UDEV_load_syms(void)
 {
 /* cast funcs to char* first, to please GCC's strict aliasing rules. */
@@ -194,6 +255,10 @@ void SDL_UDEV_Scan(void)
     struct udev_list_entry *devs = NULL;
     struct udev_list_entry *item = NULL;
 
+    unsigned sorted_count = 0;
+    struct joypad_udev_entry sorted[64];
+    int i;
+
     if (_this == NULL) {
         return;
     }
@@ -214,10 +279,27 @@ void SDL_UDEV_Scan(void)
         const char *path = _this->syms.udev_list_entry_get_name(item);
         struct udev_device *dev = _this->syms.udev_device_new_from_syspath(_this->udev, path);
         if (dev != NULL) {
-            device_event(SDL_UDEV_DEVICEADDED, dev);
-            _this->syms.udev_device_unref(dev);
+         const char* devnode = _this->syms.udev_device_get_devnode(dev);
+         if(devnode != NULL) {
+	    sorted[sorted_count].devnode = devnode;
+	    sorted[sorted_count].dev     = dev;
+	    sorted[sorted_count].item = item;
+	    sorted_count++;
+         }
         }
     }
+
+   /* Sort the udev entries by devnode name so that they are
+    * created in the proper order */
+   qsort(sorted, sorted_count,
+         sizeof(struct joypad_udev_entry), sort_devnodes);
+
+   for (i = 0; i < sorted_count; i++)
+   {
+     device_event(SDL_UDEV_DEVICEADDED, sorted[i].dev);
+     _this->syms.udev_device_unref(sorted[i].dev);
+   }
+
 
     _this->syms.udev_enumerate_unref(enumerate);
 }
@@ -408,6 +490,8 @@ static void device_event(SDL_UDEV_deviceevent type, struct udev_device *dev)
     }
 
     subsystem = _this->syms.udev_device_get_subsystem(dev);
+    if(subsystem == NULL) return;
+
     if (SDL_strcmp(subsystem, "sound") == 0) {
         devclass = SDL_UDEV_DEVICE_SOUND;
     } else if (SDL_strcmp(subsystem, "input") == 0) {
@@ -418,11 +502,11 @@ static void device_event(SDL_UDEV_deviceevent type, struct udev_device *dev)
             devclass |= SDL_UDEV_DEVICE_JOYSTICK;
         }
 
-        val = _this->syms.udev_device_get_property_value(dev, "ID_INPUT_ACCELEROMETER");
-        if (SDL_GetHintBoolean(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, SDL_TRUE) &&
-            val != NULL && SDL_strcmp(val, "1") == 0) {
-            devclass |= SDL_UDEV_DEVICE_JOYSTICK;
-        }
+        //val = _this->syms.udev_device_get_property_value(dev, "ID_INPUT_ACCELEROMETER");
+        //if (SDL_GetHintBoolean(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, SDL_TRUE) &&
+        //    val != NULL && SDL_strcmp(val, "1") == 0) {
+        //    devclass |= SDL_UDEV_DEVICE_JOYSTICK;
+        //}
 
         val = _this->syms.udev_device_get_property_value(dev, "ID_INPUT_MOUSE");
         if (val != NULL && SDL_strcmp(val, "1") == 0) {

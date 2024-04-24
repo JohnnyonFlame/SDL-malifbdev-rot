@@ -2391,10 +2391,19 @@ CheckKMSDRM()
         video_kmsdrm=no
 
         PKG_CHECK_MODULES([LIBDRM], [libdrm >= 1.4.82], libdrm_avail=yes, libdrm_avail=no)
-        PKG_CHECK_MODULES([LIBGBM], [gbm >= 11.1.0], libgbm_avail=yes, libgbm_avail=no)
+        PKG_CHECK_MODULES([LIBGBM], [gbm >= 9.0.0], libgbm_avail=yes, libgbm_avail=no)
 
         if test x$libdrm_avail = xyes -a x$libgbm_avail = xyes; then
             video_kmsdrm=yes
+        fi
+
+        AC_ARG_ENABLE(video-mali,
+        [AS_HELP_STRING([--enable-video-mali], 
+	       [use Mali video driver [default=no]])],
+	      , enable_video_mali=yes)
+        if test x$enable_video = xyes && x$enable_video_mali = xyes; then
+            AC_DEFINE(SDL_VIDEO_DRIVER_MALI, 1, [ ])
+            SUMMARY_video="${SUMMARY_video} mali"
         fi
 
         if test x$video_kmsdrm = xyes; then
@@ -2503,7 +2512,9 @@ CheckGLX()
         AC_MSG_RESULT($video_opengl_glx)
         if test x$video_opengl_glx = xyes; then
             AC_DEFINE(SDL_VIDEO_OPENGL, 1, [ ])
-            AC_DEFINE(SDL_VIDEO_OPENGL_GLX, 1, [ ])
+#
+# Disable GLX on MALI platform to make sure SDL loads OpenGLES2 with HW acceleration
+#            AC_DEFINE(SDL_VIDEO_OPENGL_GLX, 1, [ ])
         fi
     fi
 }

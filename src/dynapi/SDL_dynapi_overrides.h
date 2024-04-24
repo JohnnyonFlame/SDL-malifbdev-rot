@@ -209,6 +209,12 @@
 #define SDL_JoystickUpdate SDL_JoystickUpdate_REAL
 #define SDL_JoystickEventState SDL_JoystickEventState_REAL
 #define SDL_JoystickGetAxis SDL_JoystickGetAxis_REAL
+
+#define SDL_JoystickDevicePathById SDL_JoystickDevicePathById_REAL
+#define SDL_JoystickButtonEventCodeById SDL_JoystickButtonEventCodeById_REAL
+#define SDL_JoystickAxisEventCodeById SDL_JoystickAxisEventCodeById_REAL
+#define SDL_JoystickHatEventCodeById SDL_JoystickHatEventCodeById_REAL
+
 #define SDL_JoystickGetHat SDL_JoystickGetHat_REAL
 #define SDL_JoystickGetBall SDL_JoystickGetBall_REAL
 #define SDL_JoystickGetButton SDL_JoystickGetButton_REAL
