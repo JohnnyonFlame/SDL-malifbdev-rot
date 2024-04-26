@@ -476,6 +476,7 @@ extern VideoBootStrap DUMMY_evdev_bootstrap;
 extern VideoBootStrap Wayland_bootstrap;
 extern VideoBootStrap NACL_bootstrap;
 extern VideoBootStrap VIVANTE_bootstrap;
+extern VideoBootStrap MALI_bootstrap;
 extern VideoBootStrap Emscripten_bootstrap;
 extern VideoBootStrap QNX_bootstrap;
 extern VideoBootStrap OFFSCREEN_bootstrap;
