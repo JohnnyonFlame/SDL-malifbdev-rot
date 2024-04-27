@@ -432,8 +432,10 @@ static int SDL_EGL_LoadLibraryInternal(_THIS, const char *egl_path)
     LOAD_FUNC(eglGetConfigAttrib);
     LOAD_FUNC(eglCreateContext);
     LOAD_FUNC(eglDestroyContext);
+    LOAD_FUNC(eglCreatePixmapSurface);
     LOAD_FUNC(eglCreatePbufferSurface);
     LOAD_FUNC(eglCreateWindowSurface);
+    LOAD_FUNC(eglGetCurrentSurface);
     LOAD_FUNC(eglDestroySurface);
     LOAD_FUNC(eglMakeCurrent);
     LOAD_FUNC(eglSwapBuffers);

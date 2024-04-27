@@ -22,20 +22,64 @@
 
 #if SDL_VIDEO_DRIVER_MALI && SDL_VIDEO_OPENGL_EGL
 
-#include "SDL_maliopengles.h"
 #include "SDL_malivideo.h"
+#include "SDL_maliopengles.h"
+#include "SDL_maliblitter.h"
 
 /* EGL implementation of SDL OpenGL support */
+void MALI_GLES_DefaultProfileConfig(_THIS, int *mask, int *major, int *minor)
+{
+    /* if SDL was _also_ built with the Raspberry Pi driver (so we're
+       definitely a Pi device), default to GLES2. */
+    *mask = SDL_GL_CONTEXT_PROFILE_ES;
+    *major = 2;
+    *minor = 0;
+}
 
 int
 MALI_GLES_LoadLibrary(_THIS, const char *path)
 {
-    return SDL_EGL_LoadLibrary(_this, path, EGL_DEFAULT_DISPLAY, 0);
+   /* Delay loading this until the very end. */
+   return 0;
 }
 
-SDL_EGL_CreateContext_impl(MALI)
-SDL_EGL_SwapWindow_impl(MALI)
+int MALI_GLES_SwapWindow(_THIS, SDL_Window * window)
+{
+   int r;
+   unsigned int prev;
+   EGLSurface surf;
+   SDL_WindowData *windowdata;
+   SDL_DisplayData *displaydata = SDL_GetDisplayDriverData(0);
+   MALI_Blitter *blitter = displaydata->blitter;
+
+   if (blitter == NULL)
+      return SDL_EGL_SwapBuffers(_this, ((SDL_WindowData *)window->driverdata)->egl_surface);
+
+   windowdata = (SDL_WindowData*)_this->windows->driverdata;
+
+   SDL_LockMutex(blitter->mutex);
+
+   // First create the necessary fence
+   windowdata->surface[windowdata->back_buffer].egl_fence = _this->egl_data->eglCreateSyncKHR(_this->egl_data->egl_display, EGL_SYNC_FENCE_KHR, NULL);
+
+   // Flip back and front buffers
+   prev = windowdata->front_buffer;
+   windowdata->front_buffer = windowdata->back_buffer;
+   windowdata->back_buffer = prev;
+
+   // Done, update back buffer surfaces
+   surf = windowdata->surface[windowdata->back_buffer].egl_surface;
+   windowdata->egl_surface = surf;
+   r = _this->egl_data->eglMakeCurrent(_this->egl_data->egl_display, surf, surf, _this->current_glctx);
+
+   SDL_CondSignal(blitter->cond);
+   SDL_UnlockMutex(blitter->mutex);
+
+   return (r == EGL_TRUE) ? 0 : SDL_EGL_SetError("Failed to set current surface.", "eglMakeCurrent");
+}
+
 SDL_EGL_MakeCurrent_impl(MALI)
+SDL_EGL_CreateContext_impl(MALI)
 
 #endif /* SDL_VIDEO_DRIVER_MALI && SDL_VIDEO_OPENGL_EGL */
 
