@@ -394,8 +394,9 @@ MALI_CreateWindow(_THIS, SDL_Window * window)
         return SDL_OutOfMemory();
     }
 
-    /* Use the entire screen when the blitter isn't enabled */
-    if (displaydata->blitter) {
+    /* Use the entire screen when the blitter isn't enabled or the selected
+       resolution doesn't make any sense. */
+    if ((displaydata->blitter == NULL) || (window->w < 32 || window->h < 32)) {
         SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESIZED,
                             display->current_mode.w, display->current_mode.h);
     }
@@ -478,13 +479,35 @@ void
 MALI_SetWindowSize(_THIS, SDL_Window * window)
 {
     SDL_WindowData *windowdata;
+    SDL_VideoDisplay *display;
     SDL_DisplayData *displaydata;
 
     windowdata = window->driverdata;
-    displaydata = SDL_GetDisplayDriverData(0);
+    display = SDL_GetDisplayForWindow(window);
+    displaydata = display->driverdata;
 
-    // If we're using the blitter, we need to warn it about the surface reconfiguration!
+    /*
+     * Switch to a fullscreen resolution whenever:
+     * - We are not using the blitter
+     * - A fullscreen was requested
+     * - The window resolution requested doesn't make any sense
+     */
+    if ((displaydata->blitter == NULL)
+        || (window->w < 32 || window->h < 32)
+        || ((window->flags & SDL_WINDOW_FULLSCREEN) == SDL_WINDOW_FULLSCREEN)) {
+        SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESIZED,
+                            display->current_mode.w, display->current_mode.h);
+    }
+
+    /*
+     * If we're using the blitter, we might need to signal for a surface reconfiguration
+     * if the dimensions of our surface changed.
+     */
     if (displaydata->blitter) {
+        if ((displaydata->blitter->plane_width == window->w)
+         && (displaydata->blitter->plane_height == window->h))
+            return;
+
         MALI_EGL_DeinitPixmapSurfaces(_this, window);
         windowdata->egl_surface = MALI_EGL_InitPixmapSurfaces(_this, window->w, window->h, windowdata, displaydata);
         MALI_BlitterReconfigure(_this, window, displaydata->blitter);
@@ -494,17 +517,7 @@ MALI_SetWindowSize(_THIS, SDL_Window * window)
 void
 MALI_SetWindowFullscreen(_THIS, SDL_Window *window, SDL_VideoDisplay *display, SDL_bool fullscreen)
 {
-    if (fullscreen) {
-        // Remember that SDL_SendWindowEvent sets the window width and height for you, so let's
-        // recall the width and height first.
-        int prev_w = window->w, prev_h = window->h;
-        SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESIZED,
-            display->current_mode.w, display->current_mode.h);
-
-        // If size has changed, let's reconfigure it.
-        if (display->current_mode.w != prev_w || display->current_mode.h != prev_h)
-            MALI_SetWindowSize(_this, window);
-    }
+    MALI_SetWindowSize(_this, window);
 }
 
 void
