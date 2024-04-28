@@ -34,6 +34,7 @@ typedef struct MALI_Blitter {
     int thread_stop;
     int rotation;
     int next;
+    int scaler;
     int initted;
 
     void *user_data;

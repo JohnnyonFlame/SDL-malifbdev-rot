@@ -229,8 +229,13 @@ MALI_Blitter_GetTexture(_THIS, MALI_Blitter *blitter, MALI_EGL_Surface *surf)
     blitter->glBindTexture(GL_TEXTURE_2D, surf->texture);
     blitter->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     blitter->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    blitter->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    blitter->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    if (blitter->scaler > 0) {
+        blitter->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        blitter->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    } else {
+        blitter->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        blitter->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    }
 
     /* And populate our texture with the EGLImage */
     blitter->glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, surf->egl_image);
@@ -246,18 +251,19 @@ MALI_InitBlitterContext(_THIS, MALI_Blitter *blitter, SDL_WindowData *windata, N
 
     /*
      * SDL_HQ_SCALER: Selects one of the available scalers:
-     * - 0: Linear filtering
-     * - 1: Sharp Bilinear Simple
-     * - 2: Quilez
+     * - 0: Nearest filtering
+     * - 1: Linear filtering
+     * - 2: Sharp Bilinear Simple
+     * - 3: Quilez
      */
+    blitter->scaler = 0;
     if ((use_hq_scaler = SDL_getenv("SDL_HQ_SCALER")) != NULL && *use_hq_scaler != '0') {
         switch (*use_hq_scaler) {
-            case '1': sources[1] = blit_frag_bilinear_simple; break;
-            case '2': sources[1] = blit_frag_quilez; break;
-            default: use_hq_scaler = NULL; break;
+            case '0': blitter->scaler = 0; sources[1] = blit_frag_standard; break;
+            case '1': blitter->scaler = 1; sources[1] = blit_frag_standard; break;
+            case '2': blitter->scaler = 2; sources[1] = blit_frag_bilinear_simple; break;
+            case '3': blitter->scaler = 3; sources[1] = blit_frag_quilez; break;
         }
-    } else {
-        use_hq_scaler = NULL;
     }
 
     /* Bail out early if we're already initialized. */
@@ -288,8 +294,8 @@ MALI_InitBlitterContext(_THIS, MALI_Blitter *blitter, SDL_WindowData *windata, N
         (rotation == 3) ? "vTexCoord = vec2(-aTexCoord.y, aTexCoord.x);" :
         "#error Orientation out of scope",
         /* scalers */
-        (use_hq_scaler) ? "vTexCoord = vTexCoord;"
-                        : "vTexCoord = vTexCoord / uTexSize;");
+        (blitter->scaler >= 2) ? "vTexCoord = vTexCoord;"
+                               : "vTexCoord = vTexCoord / uTexSize;");
 
     /* Compile vertex shader */
     blitter->vert = blitter->glCreateShader(GL_VERTEX_SHADER);
