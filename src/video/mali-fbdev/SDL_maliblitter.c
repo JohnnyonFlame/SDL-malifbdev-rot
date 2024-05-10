@@ -511,7 +511,6 @@ int MALI_BlitterThread(void *data)
         {
             /* Discarding previous data... */
             blitter->glClear(GL_COLOR_BUFFER_BIT);
-            blitter->glClearColor(0.0, 0.0, 0.0, 1.0);
 
             /* Perform blitting */
             MALI_Blitter_Blit(_this, blitter, current_surface->texture);
