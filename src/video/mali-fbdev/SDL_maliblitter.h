@@ -35,7 +35,7 @@ typedef struct MALI_Blitter {
     int rotation;
     int next;
     int scaler;
-    int initted;
+    int was_initialized;
 
     void *user_data;
 
@@ -49,6 +49,7 @@ extern int MALI_InitBlitterContext(_THIS, MALI_Blitter *blitter, SDL_WindowData 
 extern int MALI_BlitterThread(void *data);
 void MALI_BlitterInit(_THIS, MALI_Blitter *blitter);
 extern void MALI_BlitterReconfigure(_THIS, SDL_Window *window, MALI_Blitter *blitter);
+extern void MALI_BlitterRelease(_THIS, SDL_Window *window, MALI_Blitter *blitter);
 extern void MALI_BlitterQuit(MALI_Blitter *blitter);
 
 #endif /* SDL_VIDEO_OPENGL_EGL */

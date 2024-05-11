@@ -249,6 +249,11 @@ MALI_InitBlitterContext(_THIS, MALI_Blitter *blitter, SDL_WindowData *windata, N
     const GLchar *sources[2] = { blit_vert, blit_frag_standard };
     float scale[2];
 
+    /* Bail out early if we're already initialized. */
+    if (blitter->was_initialized) {
+        return 1;
+    }
+
     /*
      * SDL_HQ_SCALER: Selects one of the available scalers:
      * - 0: Nearest filtering
@@ -264,11 +269,6 @@ MALI_InitBlitterContext(_THIS, MALI_Blitter *blitter, SDL_WindowData *windata, N
             case '2': blitter->scaler = 2; sources[1] = blit_frag_bilinear_simple; break;
             case '3': blitter->scaler = 3; sources[1] = blit_frag_quilez; break;
         }
-    }
-
-    /* Bail out early if we're already initialized. */
-    if (blitter->initted) {
-        return 1;
     }
 
     /* The blitter thread needs to have an OpenGL ES 2.0 context available! */
@@ -363,7 +363,7 @@ MALI_InitBlitterContext(_THIS, MALI_Blitter *blitter, SDL_WindowData *windata, N
         MALI_Blitter_GetTexture(_this, blitter, &windata->surface[i]);
     }
 
-    blitter->initted = 1;
+    blitter->was_initialized = 1;
     return 1;
 }
 
@@ -393,7 +393,7 @@ MALI_DeinitBlitterContext(_THIS, MALI_Blitter *blitter)
     blitter->eglReleaseThread();
 
     blitter->window = NULL;
-    blitter->initted = 0;
+    blitter->was_initialized = 0;
     SDL_LogInfo(SDL_LOG_CATEGORY_VIDEO, "MALI_BlitterThread: Released thread.\n");
 }
 
@@ -464,16 +464,22 @@ int MALI_BlitterThread(void *data)
         // A thread stop can be either due to reconfigure requested, or due to
         // SDL teardown, in both cases, we will destroy some resources.
         if (blitter->thread_stop != 0) {
-            if (blitter->initted) {
+            if (blitter->was_initialized) {
                 MALI_DeinitBlitterContext(_this, blitter);
             }
 
-            // Signal 2 means we want to quit.
-            if (blitter->thread_stop == 2) {
-                break;
-            }
-
+            // Done tearing down.
             blitter->thread_stop = 0;
+
+            // Signal 2 means we want to quit.
+            if (blitter->thread_stop == 2)
+                break;
+
+            continue;
+        }
+
+        if (blitter->window == NULL) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "MALI_BlitterThread: NULL window.");
             continue;
         }
 
@@ -551,8 +557,13 @@ void MALI_BlitterReconfigure(_THIS, SDL_Window *window, MALI_Blitter *blitter)
     if (!blitter)
         return;
 
-    /* Flag a reconfigure request */
     SDL_LockMutex(blitter->mutex);
+    if (blitter->was_initialized) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "mali-fbdev: Reconfiguring a device that wasn't torn down.\n");
+        goto blit_reconfig_done;
+    }
+
+    /* Reconfigure the device */
     blitter->window = window;
     blitter->egl_display = _this->egl_data->egl_display;
     blitter->viewport_width = dispdata->native_display.width,
@@ -561,11 +572,26 @@ void MALI_BlitterReconfigure(_THIS, SDL_Window *window, MALI_Blitter *blitter)
     blitter->plane_height = window->h;
     blitter->plane_pitch = dispdata->stride;
     blitter->rotation = dispdata->rotation;
+blit_reconfig_done:
+    SDL_UnlockMutex(blitter->mutex);
+}
+
+void MALI_BlitterRelease(_THIS, SDL_Window *window, MALI_Blitter *blitter)
+{
+    if (!blitter)
+        return;
+
+    /* Flag a release request */
+    SDL_LockMutex(blitter->mutex);
     blitter->thread_stop = 1;
 
     /* Signal thread in order to perform stop */
     SDL_CondSignal(blitter->cond);
     SDL_UnlockMutex(blitter->mutex);
+
+    /* Wait until the blitter thread is done tearing itself down */
+    while (blitter->thread_stop != 0)
+        SDL_Delay(0);
 }
 
 void MALI_BlitterQuit(MALI_Blitter *blitter)

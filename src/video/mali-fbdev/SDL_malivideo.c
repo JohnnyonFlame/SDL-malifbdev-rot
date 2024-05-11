@@ -238,11 +238,19 @@ MALI_SetDisplayMode(_THIS, SDL_VideoDisplay * display, SDL_DisplayMode * mode)
 }
 
 static EGLSurface *
-MALI_EGL_InitPixmapSurfaces(_THIS, int width, int height, SDL_WindowData *windowdata, SDL_DisplayData *displaydata)
+MALI_EGL_InitPixmapSurfaces(_THIS, SDL_Window *window)
 {
     struct ion_fd_data ion_data;
     struct ion_allocation_data allocation_data;
-    int i, io;
+    SDL_DisplayData *displaydata;
+    SDL_WindowData *windowdata; 
+    int i, io, width, height;
+
+    windowdata = window->driverdata;
+    displaydata = SDL_GetDisplayDriverData(0);
+
+    width = window->w;
+    height = window->h;
 
     _this->egl_data->egl_surfacetype = EGL_PIXMAP_BIT;
     if (SDL_EGL_ChooseConfig(_this) != 0) {
@@ -333,6 +341,10 @@ MALI_EGL_InitPixmapSurfaces(_THIS, int width, int height, SDL_WindowData *window
         }
     }
 
+    /* Reconfigure the blitter now. */
+    MALI_BlitterReconfigure(_this, window, displaydata->blitter);
+
+    /* Done. */
     return windowdata->surface[windowdata->back_buffer].egl_surface;
 }
 
@@ -348,9 +360,12 @@ MALI_EGL_DeinitPixmapSurfaces(_THIS, SDL_Window *window)
     displaydata = SDL_GetDisplayDriverData(0);
     if (!displaydata->blitter)
         return;
-
-    MALI_BlitterReconfigure(_this, window, displaydata->blitter);
     
+    // Tear down the device resources first
+    MALI_BlitterRelease(_this, window, displaydata->blitter);
+
+    SDL_LockMutex(displaydata->blitter->mutex);
+
     // Disable current surface
     current_context = (EGLContext)SDL_GL_GetCurrentContext();
     current_surface = _this->egl_data->eglGetCurrentSurface(EGL_DRAW);
@@ -377,6 +392,8 @@ MALI_EGL_DeinitPixmapSurfaces(_THIS, SDL_Window *window)
         ioctl(displaydata->ion_fd, ION_IOC_FREE, &handle_data);
         data->surface[i].dmabuf_fd = -1;
     }
+
+    SDL_UnlockMutex(displaydata->blitter->mutex);
 }
 
 int
@@ -393,6 +410,9 @@ MALI_CreateWindow(_THIS, SDL_Window * window)
     if (windowdata == NULL) {
         return SDL_OutOfMemory();
     }
+
+    /* Setup driver data for this window */
+    window->driverdata = windowdata;
 
     /* Use the entire screen when the blitter isn't enabled or the selected
        resolution doesn't make any sense. */
@@ -427,8 +447,7 @@ MALI_CreateWindow(_THIS, SDL_Window * window)
             return SDL_SetError("mali-fbdev: Can't find mali pixmap entrypoints");
         }
 
-        windowdata->egl_surface = MALI_EGL_InitPixmapSurfaces(_this, window->w, window->h, windowdata, displaydata);
-        MALI_BlitterReconfigure(_this, window, displaydata->blitter);
+        windowdata->egl_surface = MALI_EGL_InitPixmapSurfaces(_this, window);    
     } else {
         windowdata->egl_surface = SDL_EGL_CreateSurface(_this, (NativeWindowType) &displaydata->native_display);
     }
@@ -437,9 +456,6 @@ MALI_CreateWindow(_THIS, SDL_Window * window)
         MALI_VideoQuit(_this);
         return SDL_SetError("mali-fbdev: Can't create EGL window surface");
     }
-
-    /* Setup driver data for this window */
-    window->driverdata = windowdata;
 
     /* One window, it always has focus */
     SDL_SetMouseFocus(window);
@@ -509,8 +525,7 @@ MALI_SetWindowSize(_THIS, SDL_Window * window)
             return;
 
         MALI_EGL_DeinitPixmapSurfaces(_this, window);
-        windowdata->egl_surface = MALI_EGL_InitPixmapSurfaces(_this, window->w, window->h, windowdata, displaydata);
-        MALI_BlitterReconfigure(_this, window, displaydata->blitter);
+        windowdata->egl_surface = MALI_EGL_InitPixmapSurfaces(_this, window);
     }
 }
 
