@@ -395,6 +395,7 @@ MALI_CreateWindow(_THIS, SDL_Window * window)
     SDL_WindowData *windowdata;
     SDL_VideoDisplay *display = SDL_GetDisplayForWindow(window);
     SDL_DisplayData *displaydata;
+    EGLContext egl_context;
 
     displaydata = SDL_GetDisplayDriverData(0);
 
@@ -450,6 +451,13 @@ MALI_CreateWindow(_THIS, SDL_Window * window)
         return SDL_SetError("mali-fbdev: Can't create EGL window surface");
     }
 
+    /* Set the current surface NOW. */
+    egl_context = (EGLContext)SDL_GL_GetCurrentContext();
+    if (SDL_EGL_MakeCurrent(_this, windowdata->egl_surface, egl_context) != 0) {
+        MALI_VideoQuit(_this);
+        return SDL_SetError("mali-fbdev: Can't set EGL context");
+    }
+
     /* One window, it always has focus */
     SDL_SetMouseFocus(window);
     SDL_SetKeyboardFocus(window);
@@ -490,6 +498,7 @@ MALI_SetWindowSize(_THIS, SDL_Window * window)
     SDL_WindowData *windowdata;
     SDL_VideoDisplay *display;
     SDL_DisplayData *displaydata;
+    EGLContext egl_context;
 
     windowdata = window->driverdata;
     display = SDL_GetDisplayForWindow(window);
@@ -517,8 +526,10 @@ MALI_SetWindowSize(_THIS, SDL_Window * window)
          && (displaydata->blitter->plane_height == window->h))
             return;
 
+        egl_context = (EGLContext)SDL_GL_GetCurrentContext();
         MALI_EGL_DeinitPixmapSurfaces(_this, window);
         windowdata->egl_surface = MALI_EGL_InitPixmapSurfaces(_this, window);
+        SDL_EGL_MakeCurrent(_this, windowdata->egl_surface, egl_context);
     }
 }
 
