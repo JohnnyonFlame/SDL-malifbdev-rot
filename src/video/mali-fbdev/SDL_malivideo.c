@@ -259,13 +259,6 @@ MALI_EGL_InitPixmapSurfaces(_THIS, SDL_Window *window)
     }
 
     SDL_LogInfo(SDL_LOG_CATEGORY_VIDEO, "mali-fbdev: Creating Pixmap (%dx%d) buffers", width, height);
-    if (_this->gl_config.framebuffer_srgb_capable) {
-        {
-            SDL_SetError("mali-fbdev: EGL implementation does not support sRGB system framebuffers");
-            return EGL_NO_SURFACE;
-        }
-    }
-
     windowdata->back_buffer = 0;
     windowdata->queued_buffer = 1;
     windowdata->front_buffer = 2;
