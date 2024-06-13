@@ -501,12 +501,12 @@ int MALI_BlitterThread(void *data)
         }
 
         /* Flip the most recent back buffer with the front buffer */
-        page = windata->queued_buffer;
-        windata->queued_buffer = windata->front_buffer;
-        windata->front_buffer = page;
+        page = windata->front_buffer;
+        windata->front_buffer = windata->queued_buffer;
+        windata->queued_buffer = page;
 
         /* select surface to wait and blit */
-        current_surface = &windata->surface[windata->queued_buffer];
+        current_surface = &windata->surface[windata->front_buffer];
 
         /* wait for fence and flip display */
         if (blitter->eglClientWaitSyncKHR(

@@ -63,8 +63,8 @@ int MALI_GLES_SwapWindow(_THIS, SDL_Window * window)
    windowdata->surface[windowdata->back_buffer].egl_fence = _this->egl_data->eglCreateSyncKHR(_this->egl_data->egl_display, EGL_SYNC_FENCE_KHR, NULL);
 
    // Flip back and front buffers
-   prev = windowdata->front_buffer;
-   windowdata->front_buffer = windowdata->back_buffer;
+   prev = windowdata->queued_buffer;
+   windowdata->queued_buffer = windowdata->back_buffer;
    windowdata->back_buffer = prev;
 
    // Done, update back buffer surfaces
