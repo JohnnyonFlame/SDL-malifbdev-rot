@@ -252,6 +252,8 @@ MALI_EGL_InitPixmapSurfaces(_THIS, SDL_Window *window)
     width = window->w;
     height = window->h;
 
+    _this->gl_config.multisamplebuffers = 0;
+    _this->gl_config.multisamplesamples = 0;
     _this->egl_data->egl_surfacetype = EGL_PIXMAP_BIT;
     if (SDL_EGL_ChooseConfig(_this) != 0) {
         SDL_SetError("mali-fbdev: Unable to find a suitable EGL config");
