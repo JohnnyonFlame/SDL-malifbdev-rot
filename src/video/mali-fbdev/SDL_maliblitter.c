@@ -466,6 +466,7 @@ int MALI_BlitterThread(void *data)
         if (blitter->thread_stop != 0) {
             if (blitter->was_initialized) {
                 MALI_DeinitBlitterContext(_this, blitter);
+                prevSwapInterval = -1;
             }
 
             // Done tearing down.
