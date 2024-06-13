@@ -513,7 +513,7 @@ int MALI_BlitterThread(void *data)
         if (blitter->eglClientWaitSyncKHR(
             blitter->egl_display,
             current_surface->egl_fence, 
-            EGL_SYNC_FLUSH_COMMANDS_BIT_KHR, 
+            0,
             EGL_FOREVER_NV))
         {
             /* Discarding previous data... */

@@ -76,6 +76,7 @@ typedef struct SDL_WindowData
     int front_buffer;
 
     MALI_EGL_Surface surface[3];
+    void (*glFlush)(void);
 } SDL_WindowData;
 
 /****************************************************************************/

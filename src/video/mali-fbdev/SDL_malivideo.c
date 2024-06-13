@@ -334,6 +334,9 @@ MALI_EGL_InitPixmapSurfaces(_THIS, SDL_Window *window)
         }
     }
 
+    /* Acquire an entry point to the glFlush function used to flush the buffered commands on "swap". */
+    windowdata->glFlush = SDL_GL_GetProcAddress("glFlush");
+
     /* Reconfigure the blitter now. */
     MALI_BlitterReconfigure(_this, window, displaydata->blitter);
 

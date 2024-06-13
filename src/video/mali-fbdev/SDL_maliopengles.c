@@ -56,6 +56,7 @@ int MALI_GLES_SwapWindow(_THIS, SDL_Window * window)
       return SDL_EGL_SwapBuffers(_this, ((SDL_WindowData *)window->driverdata)->egl_surface);
 
    windowdata = (SDL_WindowData*)_this->windows->driverdata;
+   windowdata->glFlush();
 
    SDL_LockMutex(blitter->mutex);
 
