@@ -244,7 +244,8 @@ MALI_EGL_InitPixmapSurfaces(_THIS, SDL_Window *window)
     struct ion_allocation_data allocation_data;
     SDL_DisplayData *displaydata;
     SDL_WindowData *windowdata; 
-    int i, io, width, height;
+    int i, io, width, height, attr = 0;
+    GLint surf_attribs[3] = {};
 
     windowdata = window->driverdata;
     displaydata = SDL_GetDisplayDriverData(0);
@@ -259,6 +260,15 @@ MALI_EGL_InitPixmapSurfaces(_THIS, SDL_Window *window)
         SDL_SetError("mali-fbdev: Unable to find a suitable EGL config");
         return EGL_NO_SURFACE;
     }
+
+    /* Did we request a sRGB surface? */
+    if (_this->gl_config.framebuffer_srgb_capable) {
+        surf_attribs[attr++] = EGL_GL_COLORSPACE_KHR;
+        surf_attribs[attr++] = EGL_GL_COLORSPACE_SRGB_KHR;
+    }
+
+    //end the EGL Surface attribute list
+    surf_attribs[attr] = EGL_NONE;
 
     SDL_LogInfo(SDL_LOG_CATEGORY_VIDEO, "mali-fbdev: Creating Pixmap (%dx%d) buffers", width, height);
     windowdata->back_buffer = 0;
@@ -329,7 +339,8 @@ MALI_EGL_InitPixmapSurfaces(_THIS, SDL_Window *window)
         surf->egl_surface = _this->egl_data->eglCreatePixmapSurface(
             _this->egl_data->egl_display,
             _this->egl_data->egl_config,
-            surf->pixmap_handle, NULL);
+            surf->pixmap_handle,
+            surf_attribs);
         if (surf->egl_surface == EGL_NO_SURFACE) {
             SDL_EGL_SetError("mali-fbdev: Unable to create EGL window surface", "eglCreatePixmapSurface");
             return EGL_NO_SURFACE;
