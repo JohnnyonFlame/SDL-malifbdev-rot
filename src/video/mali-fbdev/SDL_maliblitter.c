@@ -249,11 +249,6 @@ MALI_InitBlitterContext(_THIS, MALI_Blitter *blitter, SDL_WindowData *windata, N
     const GLchar *sources[2] = { blit_vert, blit_frag_standard };
     float scale[2];
 
-    /* Bail out early if we're already initialized. */
-    if (blitter->was_initialized) {
-        return 1;
-    }
-
     /*
      * SDL_HQ_SCALER: Selects one of the available scalers:
      * - 0: Nearest filtering
@@ -445,12 +440,12 @@ int MALI_BlitterThread(void *data)
     int prevSwapInterval = -1;
     MALI_Blitter *blitter = (MALI_Blitter*)data;
     _THIS = blitter->_this;
-    SDL_Window *window;
-    SDL_WindowData *windata;
-    SDL_VideoDisplay *display;
+    SDL_Window *window = NULL;
+    SDL_WindowData *windata = NULL;
+    SDL_VideoDisplay *display = NULL;
     SDL_DisplayData *dispdata = SDL_GetDisplayDriverData(0);
     unsigned int page;
-    MALI_EGL_Surface *current_surface;
+    MALI_EGL_Surface *current_surface = NULL;
     
     MALI_Blitter_LoadFuncs(blitter);
 
@@ -484,16 +479,20 @@ int MALI_BlitterThread(void *data)
             continue;
         }
 
-        window = blitter->window;
-        windata = (SDL_WindowData *)window->driverdata;
-        display = SDL_GetDisplayForWindow(window);
-        dispdata = (SDL_DisplayData *)display->driverdata;
-
-        /* Initialize blitter on the first out frame we have */
-        if (!MALI_InitBlitterContext(_this, blitter, windata, (NativeWindowType)&dispdata->native_display, blitter->rotation))
+        /* If we haven't initialized the blitter, the first valid frame does it. */
+        if (blitter->was_initialized == 0)
         {
-            SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Failed to initialize blitter thread");
-            SDL_Quit();
+            /* Acquire pointers for the resources needed here. */
+            window = blitter->window;
+            windata = (SDL_WindowData *)window->driverdata;
+            display = SDL_GetDisplayForWindow(window);
+            dispdata = (SDL_DisplayData *)display->driverdata;
+
+            if (!MALI_InitBlitterContext(_this, blitter, windata, (NativeWindowType)&dispdata->native_display, blitter->rotation))
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Failed to initialize blitter thread");
+                SDL_Quit();
+            }            
         }
 
         if (prevSwapInterval != _this->egl_data->egl_swapinterval) {
