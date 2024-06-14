@@ -516,6 +516,13 @@ int MALI_BlitterThread(void *data)
             0,
             EGL_FOREVER_NV))
         {
+            /* 
+                JohnnyonFlame: Mali bug. If we don't manually destroy the fence here
+                this is going to leak and crash.
+            */
+            blitter->eglDestroySyncKHR(blitter->egl_display, current_surface->egl_fence);
+            current_surface->egl_fence = EGL_NO_SYNC;
+
             /* Discarding previous data... */
             blitter->glClear(GL_COLOR_BUFFER_BIT);
 

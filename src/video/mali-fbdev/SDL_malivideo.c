@@ -345,6 +345,8 @@ MALI_EGL_InitPixmapSurfaces(_THIS, SDL_Window *window)
             SDL_EGL_SetError("mali-fbdev: Unable to create EGL window surface", "eglCreatePixmapSurface");
             return EGL_NO_SURFACE;
         }
+
+        surf->egl_fence = EGL_NO_SYNC;
     }
 
     /* Acquire an entry point to the glFlush function used to flush the buffered commands on "swap". */

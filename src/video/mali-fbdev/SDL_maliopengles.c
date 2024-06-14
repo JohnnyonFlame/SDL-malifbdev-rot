@@ -68,6 +68,16 @@ int MALI_GLES_SwapWindow(_THIS, SDL_Window * window)
    windowdata->queued_buffer = windowdata->back_buffer;
    windowdata->back_buffer = prev;
 
+   // Do we have anything left over from the previous frame?
+   if (windowdata->surface[windowdata->back_buffer].egl_fence != EGL_NO_SYNC) {
+      _this->egl_data->eglDestroySyncKHR(
+         _this->egl_data->egl_display,
+         windowdata->surface[windowdata->back_buffer].egl_fence
+      );
+
+      windowdata->surface[windowdata->back_buffer].egl_fence = EGL_NO_SYNC;
+   }
+
    // Done, update back buffer surfaces
    surf = windowdata->surface[windowdata->back_buffer].egl_surface;
    windowdata->egl_surface = surf;
